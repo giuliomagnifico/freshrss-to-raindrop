@@ -1,15 +1,17 @@
 name: sync
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'
   workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'
 
 jobs:
   sync:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -22,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Pull latest changes
+        run: git pull origin main --rebase
+
       - name: Run script
         run: python main.py
         env:
@@ -30,17 +35,12 @@ jobs:
           FRESHRSS_PASSWORD: ${{ secrets.FRESHRSS_PASSWORD }}
           RAINDROP_TOKEN: ${{ secrets.RAINDROP_TOKEN }}
 
-      - name: Commit changes
+      - name: Commit and push if changed
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
-          git fetch origin main
-          git checkout main
-          git pull origin main --rebase
-          git add -A
-          git status
-          git commit -m "update synced.json" || echo "Nothing to commit"
+          git add synced.json
+          git diff --cached --quiet || git commit -m "update synced.json"
           git push origin main
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
