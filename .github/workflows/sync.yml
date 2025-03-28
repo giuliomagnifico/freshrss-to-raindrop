@@ -28,10 +28,10 @@ jobs:
       - name: Install requests
         run: pip install requests
 
-      - name: Run sync script
+      - name: Run sync script (no file write)
         run: python main.py
 
-      - name: Git pull before commit
+      - name: Git pull to update branch
         env:
           TOKEN: ${{ secrets.GH_PAT }}
         run: |
@@ -42,7 +42,7 @@ jobs:
           git checkout main
           git pull origin main --rebase
 
-      - name: Save synced.json
+      - name: Generate synced.json from .ids.tmp
         run: python post_commit.py
 
       - name: Commit synced.json
