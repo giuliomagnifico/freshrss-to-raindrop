@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import subprocess
 
 IDS_TMP_FILE = ".ids.tmp"
 SYNCED_FILE = "synced.json"
@@ -15,3 +16,10 @@ with open(SYNCED_FILE, "w") as f:
     json.dump({"synced": ids}, f, indent=2)
 
 print("✅ synced.json aggiornato dopo git pull")
+
+# 🔁 Ora tracciamo il file in Git
+try:
+    subprocess.run(["git", "add", SYNCED_FILE], check=True)
+    print("📁 synced.json aggiunto al commit")
+except subprocess.CalledProcessError as e:
+    print("⚠️ Errore durante il git add:", e)
