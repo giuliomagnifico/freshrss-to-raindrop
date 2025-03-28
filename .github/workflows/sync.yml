@@ -28,10 +28,10 @@ jobs:
       - name: Install requests
         run: pip install requests
 
-      - name: Run script
+      - name: Run sync script
         run: python main.py
 
-      - name: Commit synced.json
+      - name: Git pull before commit
         env:
           TOKEN: ${{ secrets.GH_PAT }}
         run: |
@@ -41,6 +41,12 @@ jobs:
           git fetch origin main
           git checkout main
           git pull origin main --rebase
+
+      - name: Save synced.json
+        run: python post_commit.py
+
+      - name: Commit synced.json
+        run: |
           git add synced.json
           git commit -m "update synced.json" || echo "Nothing to commit"
           git push origin main
