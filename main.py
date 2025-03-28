@@ -1,6 +1,7 @@
 import requests
 import os
 import json
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 FRESHRSS_URL = os.getenv("FRESHRSS_URL")
 FRESHRSS_USER = os.getenv("FRESHRSS_USER")
@@ -10,6 +11,14 @@ COLLECTION_TITLE = "RSS starred"
 
 SYNCED_FILE = "synced.json"
 IDS_TMP_FILE = ".ids.tmp"
+
+def normalize_url(raw_url):
+    parsed = urlparse(raw_url)
+    query = parse_qsl(parsed.query)
+    # Rimuove parametri UTM
+    filtered = [(k, v) for k, v in query if not k.lower().startswith("utm_")]
+    normalized_query = urlencode(sorted(filtered))
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', normalized_query, ''))
 
 def login_to_freshrss():
     r = requests.post(f"{FRESHRSS_URL}/api/greader.php/accounts/ClientLogin", data={
@@ -62,7 +71,8 @@ def main():
         new_synced = set(synced_ids)
 
         for a in articles:
-            url = a["alternate"][0]["href"]
+            raw_url = a["alternate"][0]["href"]
+            url = normalize_url(raw_url)
             if url in synced_ids:
                 continue
             save_to_raindrop(collection_id, a)
