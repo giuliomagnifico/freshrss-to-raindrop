@@ -13,7 +13,7 @@ def login_to_freshrss():
         "Passwd": FRESHRSS_PASSWORD
     })
     r.raise_for_status()
-    return r.text.strip()
+    return [line.split('=')[1] for line in r.text.strip().splitlines() if line.startswith('Auth=')][0]
 
 def get_starred_articles(token):
     headers = {"Authorization": f"GoogleLogin auth={token}"}
