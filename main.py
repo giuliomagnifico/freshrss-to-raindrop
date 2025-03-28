@@ -1,11 +1,14 @@
 import requests
 import os
+import json
 
 FRESHRSS_URL = os.getenv("FRESHRSS_URL")
 FRESHRSS_USER = os.getenv("FRESHRSS_USER")
 FRESHRSS_PASSWORD = os.getenv("FRESHRSS_PASSWORD")
 RAINDROP_TOKEN = os.getenv("RAINDROP_TOKEN")
 COLLECTION_TITLE = "RSS starred"
+
+SYNCED_FILE = "synced.json"
 
 def login_to_freshrss():
     r = requests.post(f"{FRESHRSS_URL}/api/greader.php/accounts/ClientLogin", data={
@@ -36,7 +39,6 @@ def save_to_raindrop(collection_id, article):
         "collection": {"$id": collection_id},
         "link": article["alternate"][0]["href"],
         "title": article["title"],
-        "excerpt": article.get("summary", {}).get("content", "")[:500],
     }
     r = requests.post("https://api.raindrop.io/rest/v1/raindrop", headers={
         "Authorization": f"Bearer {RAINDROP_TOKEN}",
@@ -44,13 +46,32 @@ def save_to_raindrop(collection_id, article):
     }, json=data)
     r.raise_for_status()
 
+def load_synced_ids():
+    if os.path.exists(SYNCED_FILE):
+        with open(SYNCED_FILE, "r") as f:
+            return set(json.load(f).get("synced", []))
+    return set()
+
+def save_synced_ids(ids):
+    with open(SYNCED_FILE, "w") as f:
+        json.dump({"synced": list(ids)}, f, indent=2)
+
 def main():
     try:
         token = login_to_freshrss()
         articles = get_starred_articles(token)
         collection_id = get_raindrop_collection_id()
+        synced_ids = load_synced_ids()
+        new_synced = set(synced_ids)
+
         for a in articles:
+            if a["id"] in synced_ids:
+                continue
             save_to_raindrop(collection_id, a)
+            new_synced.add(a["id"])
+
+        save_synced_ids(new_synced)
+        print(f"✅ Sincronizzati {len(new_synced) - len(synced_ids)} nuovi articoli")
     except Exception as e:
         print("❌ Error:", e)
 
