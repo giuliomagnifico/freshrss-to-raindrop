@@ -62,10 +62,11 @@ def main():
         new_synced = set(synced_ids)
 
         for a in articles:
-            if a["id"] in synced_ids:
+            url = a["alternate"][0]["href"]
+            if url in synced_ids:
                 continue
             save_to_raindrop(collection_id, a)
-            new_synced.add(a["id"])
+            new_synced.add(url)
 
         with open(IDS_TMP_FILE, "w") as f:
             json.dump(list(new_synced), f, indent=2)
