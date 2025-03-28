@@ -25,23 +25,55 @@ def normalize_url(raw_url):
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', normalized_query, ''))
 
 def login_to_freshrss():
+    print("🔐 Login a FreshRSS...")
     r = requests.post(f"{FRESHRSS_URL}/api/greader.php/accounts/ClientLogin", data={
         "Email": FRESHRSS_USER,
         "Passwd": FRESHRSS_PASSWORD
     })
     r.raise_for_status()
-    return [line.split('=')[1] for line in r.text.strip().splitlines() if line.startswith('Auth=')][0]
+    token = [line.split('=')[1] for line in r.text.strip().splitlines() if line.startswith('Auth=')][0]
+    print("✅ Login OK")
+    return token
 
 def get_starred_articles(token):
+    print("🔎 Cerco articoli con stella...")
     headers = {"Authorization": f"GoogleLogin auth={token}"}
     r = requests.get(f"{FRESHRSS_URL}/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred", headers=headers)
     r.raise_for_status()
-    return r.json().get("items", [])
+    items = r.json().get("items", [])
+    print(f"📦 Trovati {len(items)} articoli con stella")
+    return items
 
 def get_raindrop_collection_id():
-    r = requests
+    print("📁 Recupero ID collezione Raindrop...")
+    headers = {"Authorization": f"Bearer {RAINDROP_TOKEN}"}
+    r = requests.get("https://api.raindrop.io/rest/v1/collections", headers=headers)
+    r.raise_for_status()
+    for collection in r.json().get("items", []):
+        if collection.get("title") == COLLECTION_TITLE:
+            print(f"✅ Collezione trovata: {COLLECTION_TITLE}")
+            return collection["_id"]
+    raise Exception(f"Collezione '{COLLECTION_TITLE}' non trovata")
 
-import os
-print("✅ Fine main.py")
-print("Contenuto .ids.tmp:")
-os.system("cat .ids.tmp || echo 'File mancante'")
+def main():
+    token = login_to_freshrss()
+    articles = get_starred_articles(token)
+
+    ids = []
+    Path(IDS_TMP_FILE).unlink(missing_ok=True)
+
+    with open(IDS_TMP_FILE, "w") as f:
+        for article in articles:
+            url = article.get("canonical", [{}])[0].get("href")
+            if not url:
+                continue
+            norm_url = normalize_url(url)
+            ids.append(norm_url)
+            f.write(norm_url + "\n")
+
+    print("✅ Fine main.py")
+    print("Contenuto .ids.tmp:")
+    os.system(f"cat {IDS_TMP_FILE} || echo 'File mancante'")
+
+if __name__ == "__main__":
+    main()
