@@ -1,21 +1,17 @@
 import json
+from pathlib import Path
 
-def save_synced_ids(ids, path="synced.json"):
-    with open(path, "w") as f:
-        json.dump({"synced": list(ids)}, f, indent=2)
+IDS_TMP_FILE = ".ids.tmp"
+SYNCED_FILE = "synced.json"
 
-if __name__ == "__main__":
-    import sys
-    from pathlib import Path
+if not Path(IDS_TMP_FILE).exists():
+    print("❌ Nessun file .ids.tmp trovato")
+    exit(1)
 
-    synced_path = Path("synced.json")
-    if not synced_path.exists():
-        print("❌ Nessun file synced.json trovato")
-        sys.exit(1)
+with open(IDS_TMP_FILE) as f:
+    ids = json.load(f)
 
-    with open(synced_path) as f:
-        data = json.load(f)
-        ids = set(data.get("synced", []))
+with open(SYNCED_FILE, "w") as f:
+    json.dump({"synced": ids}, f, indent=2)
 
-    save_synced_ids(ids)
-    print(f"✅ synced.json aggiornato dopo il pull")
+print("✅ synced.json aggiornato dopo git pull")
