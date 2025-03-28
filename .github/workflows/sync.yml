@@ -40,7 +40,7 @@ jobs:
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
           git fetch origin main
           git checkout main
-          git pull origin main --rebase
           git add synced.json
           git commit -m "update synced.json" || echo "Nothing to commit"
+          git pull origin main --rebase
           git push origin main
