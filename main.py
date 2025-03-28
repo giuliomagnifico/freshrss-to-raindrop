@@ -9,6 +9,7 @@ RAINDROP_TOKEN = os.getenv("RAINDROP_TOKEN")
 COLLECTION_TITLE = "RSS starred"
 
 SYNCED_FILE = "synced.json"
+IDS_TMP_FILE = ".ids.tmp"
 
 def login_to_freshrss():
     r = requests.post(f"{FRESHRSS_URL}/api/greader.php/accounts/ClientLogin", data={
@@ -66,9 +67,8 @@ def main():
             save_to_raindrop(collection_id, a)
             new_synced.add(a["id"])
 
-        # Salva dati per post_commit.py
-        with open(SYNCED_FILE, "w") as f:
-            json.dump({"synced": list(new_synced)}, f, indent=2)
+        with open(IDS_TMP_FILE, "w") as f:
+            json.dump(list(new_synced), f, indent=2)
 
         print(f"✅ Sincronizzati {len(new_synced) - len(synced_ids)} nuovi articoli")
 
