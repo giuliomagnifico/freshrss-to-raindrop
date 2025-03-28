@@ -1,39 +1,36 @@
-name: Sync Starred to Raindrop
+name: sync
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    env:
-      FRESHRSS_URL: ${{ secrets.FRESHRSS_URL }}
-      FRESHRSS_USER: ${{ secrets.FRESHRSS_USER }}
-      FRESHRSS_PASSWORD: ${{ secrets.FRESHRSS_PASSWORD }}
-      RAINDROP_TOKEN: ${{ secrets.RAINDROP_TOKEN }}
     steps:
       - uses: actions/checkout@v3
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: Install requests
+      - name: Install dependencies
         run: pip install requests
 
-      - name: Run sync script (no file write)
+      - name: Run script
         run: python main.py
-
-      - name: Git pull to update branch
         env:
-          TOKEN: ${{ secrets.GH_PAT }}
+          FRESHRSS_URL: ${{ secrets.FRESHRSS_URL }}
+          FRESHRSS_USER: ${{ secrets.FRESHRSS_USER }}
+          FRESHRSS_PASSWORD: ${{ secrets.FRESHRSS_PASSWORD }}
+          RAINDROP_TOKEN: ${{ secrets.RAINDROP_TOKEN }}
+
+      - name: Commit changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -41,12 +38,9 @@ jobs:
           git fetch origin main
           git checkout main
           git pull origin main --rebase
-
-      - name: Generate synced.json from .ids.tmp
-        run: python post_commit.py
-
-      - name: Commit synced.json
-        run: |
-          git add synced.json .ids.tmp
-          git commit -m "update synced.json and .ids.tmp" || echo "Nothing to commit"
+          git add -A
+          git status
+          git commit -m "update synced.json" || echo "Nothing to commit"
           git push origin main
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
