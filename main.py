@@ -1,10 +1,10 @@
 import requests
 import os
 
-FRESHRSS_URL = os.getenv("FRESHRSS_URL")
-FRESHRSS_USER = os.getenv("FRESHRSS_USER")
-FRESHRSS_PASSWORD = os.getenv("FRESHRSS_PASSWORD")
-RAINDROP_TOKEN = os.getenv("RAINDROP_TOKEN")
+FRESHRSS_URL = os.getenv("https://freshrss-giuliomagnifico.pikapod.net")
+FRESHRSS_USER = os.getenv("giuliomagnifico")
+FRESHRSS_PASSWORD = os.getenv("bungaWimpinki12")
+RAINDROP_TOKEN = os.getenv("AtwczlT9oATnfUs1Qkhz8tQJ")
 COLLECTION_TITLE = "RSS starred"
 
 def login_to_freshrss():
