@@ -47,6 +47,6 @@ jobs:
 
       - name: Commit synced.json
         run: |
-          git add synced.json
-          git commit -m "update synced.json" || echo "Nothing to commit"
+          git add synced.json .ids.tmp
+          git commit -m "update synced.json and .ids.tmp" || echo "Nothing to commit"
           git push origin main
