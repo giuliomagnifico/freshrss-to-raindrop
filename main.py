@@ -52,10 +52,6 @@ def load_synced_ids():
             return set(json.load(f).get("synced", []))
     return set()
 
-def save_synced_ids(ids):
-    with open(SYNCED_FILE, "w") as f:
-        json.dump({"synced": list(ids)}, f, indent=2)
-
 def main():
     try:
         token = login_to_freshrss()
@@ -70,8 +66,12 @@ def main():
             save_to_raindrop(collection_id, a)
             new_synced.add(a["id"])
 
-        save_synced_ids(new_synced)
+        # Salva dati per post_commit.py
+        with open(SYNCED_FILE, "w") as f:
+            json.dump({"synced": list(new_synced)}, f, indent=2)
+
         print(f"✅ Sincronizzati {len(new_synced) - len(synced_ids)} nuovi articoli")
+
     except Exception as e:
         print("❌ Error:", e)
 
