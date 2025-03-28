@@ -40,3 +40,8 @@ def get_starred_articles(token):
 
 def get_raindrop_collection_id():
     r = requests
+
+import os
+print("✅ Fine main.py")
+print("Contenuto .ids.tmp:")
+os.system("cat .ids.tmp || echo 'File mancante'")
