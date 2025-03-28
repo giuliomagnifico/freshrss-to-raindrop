@@ -1,7 +1,12 @@
 import requests
 import os
 import json
+import subprocess
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+from pathlib import Path
+
+# 🔁 Assicurati di avere la versione più recente del repo
+subprocess.run(["git", "pull", "origin", "main", "--rebase"], check=True)
 
 FRESHRSS_URL = os.getenv("FRESHRSS_URL")
 FRESHRSS_USER = os.getenv("FRESHRSS_USER")
@@ -15,7 +20,6 @@ IDS_TMP_FILE = ".ids.tmp"
 def normalize_url(raw_url):
     parsed = urlparse(raw_url)
     query = parse_qsl(parsed.query)
-    # Rimuove parametri UTM
     filtered = [(k, v) for k, v in query if not k.lower().startswith("utm_")]
     normalized_query = urlencode(sorted(filtered))
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', normalized_query, ''))
@@ -35,56 +39,4 @@ def get_starred_articles(token):
     return r.json().get("items", [])
 
 def get_raindrop_collection_id():
-    r = requests.get("https://api.raindrop.io/rest/v1/collections", headers={
-        "Authorization": f"Bearer {RAINDROP_TOKEN}"
-    })
-    r.raise_for_status()
-    for col in r.json()["items"]:
-        if col["title"].lower() == COLLECTION_TITLE.lower():
-            return col["_id"]
-    raise ValueError("Collection not found")
-
-def save_to_raindrop(collection_id, article):
-    data = {
-        "collection": {"$id": collection_id},
-        "link": article["alternate"][0]["href"],
-        "title": article["title"],
-    }
-    r = requests.post("https://api.raindrop.io/rest/v1/raindrop", headers={
-        "Authorization": f"Bearer {RAINDROP_TOKEN}",
-        "Content-Type": "application/json"
-    }, json=data)
-    r.raise_for_status()
-
-def load_synced_ids():
-    if os.path.exists(SYNCED_FILE):
-        with open(SYNCED_FILE, "r") as f:
-            return set(json.load(f).get("synced", []))
-    return set()
-
-def main():
-    try:
-        token = login_to_freshrss()
-        articles = get_starred_articles(token)
-        collection_id = get_raindrop_collection_id()
-        synced_ids = load_synced_ids()
-        new_synced = set(synced_ids)
-
-        for a in articles:
-            raw_url = a["alternate"][0]["href"]
-            url = normalize_url(raw_url)
-            if url in synced_ids:
-                continue
-            save_to_raindrop(collection_id, a)
-            new_synced.add(url)
-
-        with open(IDS_TMP_FILE, "w") as f:
-            json.dump(list(new_synced), f, indent=2)
-
-        print(f"✅ Sincronizzati {len(new_synced) - len(synced_ids)} nuovi articoli")
-
-    except Exception as e:
-        print("❌ Error:", e)
-
-if __name__ == "__main__":
-    main()
+    r = requests
