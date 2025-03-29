@@ -19,7 +19,7 @@ def login_to_freshrss():
         urljoin(FRESHRSS_URL, "/api/greader.php/accounts/ClientLogin"),
         data={"Email": FRESHRSS_USER, "Passwd": FRESHRSS_PASSWORD},
     )
-    if resp.status_code == 200:
+    if response.status_code in (200, 201):
         print("✅ Login OK")
         return True
     else:
