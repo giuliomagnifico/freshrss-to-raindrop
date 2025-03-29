@@ -1,11 +1,3 @@
-try:
-    with open('synced.json', 'r') as f:
-        synced_urls = json.load(f)
-        print(f'📂 synced.json caricato con {len(synced_urls)} url')
-except FileNotFoundError:
-    print('❌ synced.json non trovato, inizializzo vuoto')
-    synced_urls = []
-
 
 import os
 import json
