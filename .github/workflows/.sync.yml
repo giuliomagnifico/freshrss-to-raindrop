@@ -2,7 +2,7 @@ name: Sync FreshRSS ⭐️ → Raindrop.io
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # ogni 30 minuti
+    - cron: '*/60 * * * *'  # ogni 30 minuti
   workflow_dispatch:
 
 jobs:
@@ -13,6 +13,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: false
           fetch-depth: 0
 
