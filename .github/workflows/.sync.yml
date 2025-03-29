@@ -29,11 +29,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-      - name: Reset branch to origin
-        run: |
-          git fetch origin
-          git reset --hard origin/main
-
       - name: Run script
         run: python main.py
         env:
@@ -44,6 +39,7 @@ jobs:
 
       - name: Commit and push if changed
         run: |
+          git pull origin main --rebase
           git add synced.json
           git diff --cached --quiet || git commit -m "update synced.json"
           git push origin main
