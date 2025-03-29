@@ -1,55 +1,61 @@
-import requests
 import os
 import json
-import subprocess
-from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+import requests
+from urllib.parse import urlparse, parse_qs, urlunparse
 
-# 🔁 Assicurati di avere la versione più recente del repo
-subprocess.run(["git", "pull", "origin", "main", "--rebase"], check=True)
+FRESHRSS_URL = os.environ["FRESHRSS_URL"]
+FRESHRSS_USER = os.environ["FRESHRSS_USER"]
+FRESHRSS_PASSWORD = os.environ["FRESHRSS_PASSWORD"]
+RAINDROP_TOKEN = os.environ["RAINDROP_TOKEN"]
 
-FRESHRSS_URL = os.getenv("FRESHRSS_URL")
-FRESHRSS_USER = os.getenv("FRESHRSS_USER")
-FRESHRSS_PASSWORD = os.getenv("FRESHRSS_PASSWORD")
-RAINDROP_TOKEN = os.getenv("RAINDROP_TOKEN")
-COLLECTION_TITLE = "RSS starred"
-
-SYNCED_FILE = "synced.json"
-
-def normalize_url(raw_url):
-    parsed = urlparse(raw_url)
-    query = parse_qsl(parsed.query)
-    filtered = [(k, v) for k, v in query if not k.lower().startswith("utm_")]
-    normalized_query = urlencode(sorted(filtered))
-    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', normalized_query, ''))
-
-def login_to_freshrss():
-    r = requests.post(f"{FRESHRSS_URL}/api/greader.php/accounts/ClientLogin", data={
+def login():
+    print("🔐 Login a FreshRSS...")
+    response = requests.post(f"{FRESHRSS_URL}/api/greader.php/accounts/ClientLogin", data={
         "Email": FRESHRSS_USER,
-        "Passwd": FRESHRSS_PASSWORD
+        "Passwd": FRESHRSS_PASSWORD,
     })
-    r.raise_for_status()
-    return [line.split('=')[1] for line in r.text.strip().splitlines() if line.startswith('Auth=')][0]
+    response.raise_for_status()
+    sid = response.text.split("Auth=")[-1].strip()
+    print("✅ Login OK")
+    return sid
 
-def get_starred_articles(token):
-    headers = {"Authorization": f"GoogleLogin auth={token}"}
-    r = requests.get(f"{FRESHRSS_URL}/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred", headers=headers)
-    r.raise_for_status()
-    return r.json().get("items", [])
+def fetch_starred_articles(sid):
+    print("🔎 Cerco articoli con stella...")
+    headers = {"Authorization": f"GoogleLogin auth={sid}"}
+    response = requests.get(f"{FRESHRSS_URL}/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred", headers=headers)
+    response.raise_for_status()
+    items = response.json().get("items", [])
+    print(f"📦 Trovati {len(items)} articoli con stella")
+    return items
 
-# Inizio esecuzione script
-print("🔐 Login a FreshRSS...")
-token = login_to_freshrss()
-print("✅ Login OK")
+def normalize_url(url):
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    clean_query = {k: v for k, v in query.items() if not k.startswith("utm_")}
+    new_query = "&".join([f"{k}={v[0]}" for k, v in clean_query.items()])
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
 
-print("🔎 Cerco articoli con stella...")
-items = get_starred_articles(token)
-print(f"📦 Trovati {len(items)} articoli con stella")
+def load_synced():
+    if os.path.exists("synced.json"):
+        with open("synced.json", "r") as f:
+            return set(json.load(f))
+    return set()
 
-# Scrivi gli URL normalizzati in synced.json
-synced = [normalize_url(item["alternate"][0]["href"]) for item in items]
-with open(SYNCED_FILE, "w") as f:
-    json.dump(synced, f, indent=2)
+def save_synced(urls):
+    with open("synced.json", "w") as f:
+        json.dump(sorted(urls), f, indent=2)
+    print("💾 synced.json aggiornato")
 
-print("✅ Fine main.py")
-print("Contenuto synced.json:")
-print(json.dumps(synced, indent=2))
+def main():
+    sid = login()
+    items = fetch_starred_articles(sid)
+    old_urls = load_synced()
+    new_urls = {normalize_url(item["alternate"][0]["href"]) for item in items}
+    all_urls = old_urls.union(new_urls)
+    save_synced(all_urls)
+    print("✅ Fine main.py")
+    print("Contenuto synced.json:")
+    print(json.dumps(sorted(all_urls), indent=2))
+
+if __name__ == "__main__":
+    main()
