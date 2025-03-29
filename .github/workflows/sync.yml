@@ -42,4 +42,4 @@ jobs:
           git commit -m "update synced.json" || echo "Nothing to commit"
           git push --force || echo "Push fallito"
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOKEN: ${{ secrets.RAINDROP_PUSH_TOKEN }}
