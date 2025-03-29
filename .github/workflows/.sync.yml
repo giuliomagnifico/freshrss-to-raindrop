@@ -40,6 +40,6 @@ jobs:
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
           git add synced.json
           git commit -m "update synced.json" || echo "Nothing to commit"
-          git push --force
+          git push --force || echo "Push fallito"
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
