@@ -1,25 +1,25 @@
-name: sync
+name: Sync FreshRSS ⭐️ → Raindrop.io
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/30 * * * *'  # ogni 30 minuti
+  workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
         with:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: 3.x
 
       - name: Install dependencies
         run: pip install requests
@@ -32,14 +32,13 @@ jobs:
           FRESHRSS_PASSWORD: ${{ secrets.FRESHRSS_PASSWORD }}
           RAINDROP_TOKEN: ${{ secrets.RAINDROP_TOKEN }}
 
-      - name: Commit and push changes with force
-        env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit & Force Push
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
-          git pull --rebase
           git add synced.json
-          git diff --cached --quiet || git commit -m "update synced.json"
-          git push origin main --force
+          git commit -m "update synced.json" || echo "Nothing to commit"
+          git push --force
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
