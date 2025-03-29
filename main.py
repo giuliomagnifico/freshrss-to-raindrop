@@ -1,3 +1,11 @@
+try:
+    with open('synced.json', 'r') as f:
+        synced_urls = json.load(f)
+        print(f'📂 synced.json caricato con {len(synced_urls)} url')
+except FileNotFoundError:
+    print('❌ synced.json non trovato, inizializzo vuoto')
+    synced_urls = []
+
 
 import os
 import json
@@ -48,7 +56,6 @@ def save_to_raindrop(article):
 
     print(f"💾 Salvo su Raindrop: {url}")
     r = requests.post("https://api.raindrop.io/rest/v1/raindrop", headers=headers, json=data)
-    print(f'🔍 Raindrop response: {r.status_code} {r.text}')
     print("📡 Risposta Raindrop:", r.status_code, r.text)
 
 def main():
