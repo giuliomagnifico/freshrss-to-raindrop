@@ -16,16 +16,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-      - name: Reset to remote main
-        run: |
-          git fetch origin
-          git reset --hard origin/main
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -33,6 +23,16 @@ jobs:
 
       - name: Install dependencies
         run: pip install requests
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Reset branch to origin
+        run: |
+          git fetch origin
+          git reset --hard origin/main
 
       - name: Run script
         run: python main.py
@@ -42,7 +42,7 @@ jobs:
           FRESHRSS_PASSWORD: ${{ secrets.FRESHRSS_PASSWORD }}
           RAINDROP_TOKEN: ${{ secrets.RAINDROP_TOKEN }}
 
-      - name: Commit and push changes
+      - name: Commit and push if changed
         run: |
           git add synced.json
           git diff --cached --quiet || git commit -m "update synced.json"
