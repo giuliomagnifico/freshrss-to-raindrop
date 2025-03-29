@@ -48,6 +48,7 @@ def save_to_raindrop(article):
 
     print(f"💾 Salvo su Raindrop: {url}")
     r = requests.post("https://api.raindrop.io/rest/v1/raindrop", headers=headers, json=data)
+    print(f'🔍 Raindrop response: {r.status_code} {r.text}')
     print("📡 Risposta Raindrop:", r.status_code, r.text)
 
 def main():
