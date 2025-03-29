@@ -1,93 +1,65 @@
 import os
-import json
 import requests
-from urllib.parse import urljoin
+import json
 
-FRESHRSS_URL = os.environ['FRESHRSS_URL']
-FRESHRSS_USER = os.environ['FRESHRSS_USER']
-FRESHRSS_PASSWORD = os.environ['FRESHRSS_PASSWORD']
-RAINDROP_TOKEN = os.environ['RAINDROP_TOKEN']
+FRESHRSS_URL = os.getenv("FRESHRSS_URL")
+FRESHRSS_USER = os.getenv("FRESHRSS_USER")
+FRESHRSS_PASSWORD = os.getenv("FRESHRSS_PASSWORD")
+RAINDROP_TOKEN = os.getenv("RAINDROP_TOKEN")
+RAINDROP_COLLECTION = os.getenv("RAINDROP_COLLECTION")
 
-SESSION = requests.Session()
-
-SYNCED_FILE = "synced.json"
-
+HEADERS = {
+    "Authorization": f"Bearer {RAINDROP_TOKEN}",
+    "Content-Type": "application/json"
+}
 
 def login_to_freshrss():
-    print("\U0001F510 Login a FreshRSS...")
-    resp = SESSION.post(
-        urljoin(FRESHRSS_URL, "/api/greader.php/accounts/ClientLogin"),
-        data={"Email": FRESHRSS_USER, "Passwd": FRESHRSS_PASSWORD},
-    )
+    print("🔐 Login a FreshRSS...")
+    login_url = f"{FRESHRSS_URL}/api/greader.php/accounts/ClientLogin?Email={FRESHRSS_USER}&Passwd={FRESHRSS_PASSWORD}"
+    response = requests.get(login_url)
+
     if response.status_code in (200, 201):
-        print("✅ Login OK")
+        print("✅ Login riuscito a FreshRSS")
         return True
     else:
-        print(f"❌ Login fallito: {resp.status_code} - {resp.text}")
+        print(f"❌ Errore login FreshRSS: {response.status_code} - {response.text}")
         return False
 
+def get_starred_items():
+    print("⭐ Recupero articoli con stella da FreshRSS...")
+    url = f"{FRESHRSS_URL}/api/greader.php/reader/api/0/starred-items?output=json"
+    response = requests.get(url, auth=(FRESHRSS_USER, FRESHRSS_PASSWORD))
+    if response.status_code != 200:
+        print(f"❌ Errore nel recupero articoli: {response.status_code}")
+        return []
+    data = response.json()
+    items = data.get("items", [])
+    print(f"➡️ Trovati {len(items)} articoli con stella")
+    return items
 
-def get_starred_articles():
-    print("\U0001F50E Cerco articoli con stella...")
-    api_url = urljoin(FRESHRSS_URL, f"/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred?n=1000")
-    headers = {"Authorization": f"GoogleLogin auth={FRESHRSS_PASSWORD}"}
-    response = SESSION.get(api_url, headers=headers)
-    response.raise_for_status()
-    items = response.json().get("items", [])
-    return [(item["title"], item["alternate"][0]["href"]) for item in items]
-
-
-def load_synced():
-    if os.path.exists(SYNCED_FILE):
-        with open(SYNCED_FILE, "r") as f:
-            return set(json.load(f))
-    return set()
-
-
-def save_synced(synced):
-    with open(SYNCED_FILE, "w") as f:
-        json.dump(list(synced), f, indent=2)
-
-
-def add_to_raindrop(title, url):
-    headers = {
-        'Authorization': f'Bearer {RAINDROP_TOKEN}',
-        'Content-Type': 'application/json',
+def save_to_raindrop(item):
+    url = "https://api.raindrop.io/rest/v1/raindrop"
+    payload = {
+        "link": item.get("alternate", [{}])[0].get("href", ""),
+        "title": item.get("title", "Senza titolo"),
+        "excerpt": item.get("summary", {}).get("content", ""),
+        "collection": {"$id": int(RAINDROP_COLLECTION)}
     }
-    data = {
-        'link': url,
-        'title': title,
-        'collection': {'$title': 'RSS starred'},
-        'tags': ['FreshRSS']
-    }
-    response = requests.post('https://api.raindrop.io/rest/v1/raindrop', headers=headers, json=data)
+    response = requests.post(url, headers=HEADERS, data=json.dumps(payload))
     if response.status_code == 200:
-        print(f"✅ Aggiunto su Raindrop: {title}")
+        print(f"✅ Salvato su Raindrop: {payload['title']}")
+    elif response.status_code == 409:
+        print(f"⚠️ Già salvato: {payload['title']}")
     else:
-        print(f"❌ Errore su Raindrop per '{title}' ({url}): {response.status_code} - {response.text}")
-
+        print(f"❌ Errore salvataggio: {response.status_code} - {response.text}")
 
 def main():
     if not login_to_freshrss():
         return
 
-    articles = get_starred_articles()
-    print(f"\U0001F4E6 Trovati {len(articles)} articoli con stella")
-
-    synced = load_synced()
-    new_synced = set()
-
-    for title, url in articles:
-        if url in synced:
-            continue
-        add_to_raindrop(title, url)
-        new_synced.add(url)
-
-    save_synced(synced.union(new_synced))
-    print("✅ Fine main.py")
-    print("Contenuto synced.json:")
-    print(json.dumps(list(synced.union(new_synced)), indent=2))
-
+    items = get_starred_items()
+    for item in items:
+        save_to_raindrop(item)
 
 if __name__ == "__main__":
     main()
