@@ -2,93 +2,96 @@
 import os
 import json
 import requests
-from urllib.parse import urljoin
 
-FRESHRSS_URL = os.getenv("FRESHRSS_URL")
-FRESHRSS_USER = os.getenv("FRESHRSS_USER")
-FRESHRSS_PASSWORD = os.getenv("FRESHRSS_PASSWORD")
-RAINDROP_TOKEN = os.getenv("RAINDROP_TOKEN")
-COLLECTION_ID = "rss-starred"
+FRESHRSS_URL = os.environ["FRESHRSS_URL"]
+FRESHRSS_USER = os.environ["FRESHRSS_USER"]
+FRESHRSS_PASSWORD = os.environ["FRESHRSS_PASSWORD"]
+RAINDROP_TOKEN = os.environ["RAINDROP_TOKEN"]
 
-LOGIN_ENDPOINT = "/api/greader.php"
-STREAM_ITEMS_ENDPOINT = "/api/greader.php/reader/api/0/stream/items/ids"
-GET_ITEM_ENDPOINT = "/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred"
+FRESHRSS_API = f"{FRESHRSS_URL}/api/greader.php"
+SYNCED_FILE = "synced.json"
+COLLECTION_NAME = "RSS starred"
 
-session = requests.Session()
-synced_file = "synced.json"
 
 def login():
     print("🔐 Login a FreshRSS...")
-    r = session.post(urljoin(FRESHRSS_URL, LOGIN_ENDPOINT), data={
+    res = requests.post(f"{FRESHRSS_URL}/api/v1/login", data={
         "email": FRESHRSS_USER,
-        "passwd": FRESHRSS_PASSWORD,
-        "client": "Client_FreshRSS",
-        "accountType": "HOSTED",
-        "service": "reader"
+        "password": FRESHRSS_PASSWORD
     })
-    if r.status_code != 200:
-        raise Exception("Login fallito!")
+    res.raise_for_status()
+    session = res.json()["session_id"]
     print("✅ Login OK")
+    return {"Cookie": f"identifier={session}"}
 
-def get_starred_items():
+
+def load_synced():
+    if not Path(SYNCED_FILE).exists():
+        return set()
+    with open(SYNCED_FILE) as f:
+        return set(json.load(f))
+
+
+def save_synced(synced):
+    with open(SYNCED_FILE, "w") as f:
+        json.dump(list(synced), f, indent=2)
+        print("Contenuto synced.json:")
+        print(json.dumps(list(synced), indent=2))
+
+
+def fetch_starred(headers):
     print("🔎 Cerco articoli con stella...")
-    r = session.get(urljoin(FRESHRSS_URL, GET_ITEM_ENDPOINT), params={
+    r = requests.get(FRESHRSS_API, headers=headers, params={
         "output": "json",
-        "n": 1000
+        "starred": "true",
+        "n": 100
     })
     r.raise_for_status()
-    data = r.json()
-    items = data.get("items", [])
+    items = r.json().get("items", [])
     print(f"📦 Trovati {len(items)} articoli con stella")
     return items
 
-def load_synced():
-    if not Path(synced_file).exists():
-        return set()
-    with open(synced_file, "r") as f:
-        return set(json.load(f))
 
-def save_synced(urls):
-    with open(synced_file, "w") as f:
-        json.dump(list(urls), f, indent=2)
+def get_collection_id():
+    r = requests.get("https://api.raindrop.io/rest/v1/collections", headers={
+        "Authorization": f"Bearer {RAINDROP_TOKEN}"
+    })
+    r.raise_for_status()
+    for c in r.json()["items"]:
+        if c["title"] == COLLECTION_NAME:
+            return c["_id"]
+    raise Exception(f"Collection '{COLLECTION_NAME}' non trovata")
 
-def save_to_raindrop(url, title):
-    headers = {
-        "Authorization": f"Bearer {RAINDROP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "link": url,
-        "title": title,
-        "collection": { "title": COLLECTION_ID }
-    }
-    r = requests.post("https://api.raindrop.io/rest/v1/raindrop", headers=headers, json=data)
-    if r.status_code not in [200, 201]:
-        print(f"❌ Errore nel salvataggio su Raindrop: {url}")
-    else:
-        print(f"✅ Salvato su Raindrop: {url}")
+
+def save_to_raindrop(articles):
+    collection_id = get_collection_id()
+    for a in articles:
+        url = a["url"]
+        title = a["title"]
+        print(f"➡️ Salvo su Raindrop: {title} ({url})")
+        requests.post("https://api.raindrop.io/rest/v1/raindrop", json={
+            "collection": {"$id": collection_id},
+            "link": url,
+            "title": title
+        }, headers={
+            "Authorization": f"Bearer {RAINDROP_TOKEN}"
+        })
+
 
 def main():
-    login()
-    items = get_starred_items()
+    headers = login()
+    starred = fetch_starred(headers)
     synced = load_synced()
-    new_synced = set(synced)
 
-    for item in items:
-        url = item.get("alternate", [{}])[0].get("href")
-        title = item.get("title", "(senza titolo)")
-        if not url:
-            continue
-        if url in synced:
-            print(f"🔁 Già sincronizzato: {url}")
-            continue
-        save_to_raindrop(url, title)
-        new_synced.add(url)
+    new_articles = [a for a in starred if a["url"] not in synced]
 
-    save_synced(new_synced)
+    if new_articles:
+        save_to_raindrop(new_articles)  # 🧩 <-- questa era la riga mancante
+
+    synced.update(a["url"] for a in new_articles)
+    save_synced(synced)
     print("✅ Fine main.py")
-    print("Contenuto synced.json:")
-    print(json.dumps(list(new_synced), indent=2))
+
 
 if __name__ == "__main__":
     main()
