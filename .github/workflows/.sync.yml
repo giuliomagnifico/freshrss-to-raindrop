@@ -24,12 +24,14 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Configure Git and Pull
+      - name: Configure Git
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          git pull origin main --rebase
+
+      - name: Pull latest changes
+        run: git pull origin main --rebase
 
       - name: Run script
         run: python main.py
