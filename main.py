@@ -60,13 +60,14 @@ def main():
     else:
         synced_urls = []
 
-for url in urls:
-    print(f"🔁 Controllo articolo: {url}")
-    if url in synced_urls:
-        print("⏭️  Già sincronizzato, salto.")
-        continue
-    print("➕ Aggiungo a Raindrop...")
-    raindrop_add(url)
+    for article in articles:
+        url = article.get("canonical", [{}])[0].get("href") or article.get("alternate", [{}])[0].get("href")
+        if not url:
+            continue
+        if url not in synced_urls:
+            print(f"✨ Nuovo articolo trovato: {url}")
+            save_to_raindrop(article)
+            synced_urls.append(url)
 
     with open("synced.json", "w") as f:
         json.dump(synced_urls, f, indent=2, ensure_ascii=False)
