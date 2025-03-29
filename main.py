@@ -27,22 +27,32 @@ def get_starred_articles(headers):
     print(f"📦 Trovati {len(articles)} articoli con stella")
     return articles
 
-def save_to_raindrop(article):
-    print(f"🔗 Provo a salvare su Raindrop: {article['url']}")
+def add_to_raindrop(url, title):
+    print(f"📤 Provo ad aggiungere a Raindrop: {title} ({url})")
+
     headers = {
         "Authorization": f"Bearer {RAINDROP_TOKEN}",
         "Content-Type": "application/json"
     }
     data = {
-        "link": article["url"],
-        "title": article["title"],
-        "collection": {"title": "RSS starred"}
+        "link": url,
+        "title": title,
+        "collection": {
+            "title": "RSS starred"
+        }
     }
-    r = requests.post("https://api.raindrop.io/rest/v1/raindrop", headers=headers, data=json.dumps(data))
-    if r.status_code == 200:
-        print("✅ Salvato con successo")
-    else:
-        print(f"❌ Errore durante il salvataggio: {r.status_code} {r.text}")
+
+    response = requests.post("https://api.raindrop.io/rest/v1/raindrop", json=data, headers=headers)
+
+    print(f"🔁 Status code: {response.status_code}")
+    try:
+        print(f"📬 Response body: {response.json()}")
+    except Exception as e:
+        print(f"❌ Errore nel leggere la risposta JSON: {e}")
+        print(f"📝 Testo risposta: {response.text}")
+
+    if response.status_code != 200:
+        raise Exception(f"❌ Fallita aggiunta a Raindrop: {response.status_code} - {response.text}")
 
 def load_synced():
     if os.path.exists("synced.json"):
