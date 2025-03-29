@@ -1,3 +1,4 @@
+
 import os
 import json
 import requests
@@ -7,76 +8,73 @@ FRESHRSS_USER = os.getenv("FRESHRSS_USER")
 FRESHRSS_PASSWORD = os.getenv("FRESHRSS_PASSWORD")
 RAINDROP_TOKEN = os.getenv("RAINDROP_TOKEN")
 
-def login_freshrss():
-    print("🔐 Login a FreshRSS...")
-    r = requests.post(f"{FRESHRSS_URL}/api/greader.php/accounts/ClientLogin", data={
-        "Email": FRESHRSS_USER,
-        "Passwd": FRESHRSS_PASSWORD,
-    })
-    r.raise_for_status()
-    sid = r.text.split("\n")[2].split("=")[1]
-    print("✅ Login OK")
-    return {"Authorization": f"GoogleLogin auth={sid}"}
+SESSION = requests.Session()
+SESSION.headers.update({"User-Agent": "FreshRSS to Raindrop Sync"})
 
-def get_starred_articles(headers):
+def login_to_freshrss():
+    print("🔐 Login a FreshRSS...")
+    data = {
+        "email": FRESHRSS_USER,
+        "password": FRESHRSS_PASSWORD
+    }
+    resp = SESSION.post(f"{FRESHRSS_URL}/i", data=data, allow_redirects=False)
+    if resp.status_code != 302:
+        raise Exception("Login fallito")
+    print("✅ Login OK")
+
+def get_starred_articles():
     print("🔎 Cerco articoli con stella...")
-    r = requests.get(f"{FRESHRSS_URL}/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred?n=1000", headers=headers)
-    r.raise_for_status()
-    items = r.json().get("items", [])
-    articles = [{"title": item["title"], "url": item["canonical"][0]["href"]} for item in items if "canonical" in item]
+    resp = SESSION.get(f"{FRESHRSS_URL}/api/greader.php/reader/api/0/starred?output=json")
+    resp.raise_for_status()
+    data = resp.json()
+    articles = []
+    for item in data.get("items", []):
+        if "alternate" in item and len(item["alternate"]) > 0:
+            articles.append({
+                "url": item["alternate"][0]["href"],
+                "title": item["title"]
+            })
     print(f"📦 Trovati {len(articles)} articoli con stella")
     return articles
 
 def add_to_raindrop(url, title):
-    print(f"📤 Provo ad aggiungere a Raindrop: {title} ({url})")
-
-    headers = {
-        "Authorization": f"Bearer {RAINDROP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "link": url,
-        "title": title,
-        "collection": {
-            "title": "RSS starred"
-        }
-    }
-
-    response = requests.post("https://api.raindrop.io/rest/v1/raindrop", json=data, headers=headers)
-
-    print(f"🔁 Status code: {response.status_code}")
-    try:
-        print(f"📬 Response body: {response.json()}")
-    except Exception as e:
-        print(f"❌ Errore nel leggere la risposta JSON: {e}")
-        print(f"📝 Testo risposta: {response.text}")
-
-    if response.status_code != 200:
-        raise Exception(f"❌ Fallita aggiunta a Raindrop: {response.status_code} - {response.text}")
-
-def load_synced():
-    if os.path.exists("synced.json"):
-        with open("synced.json", "r") as f:
-            return json.load(f)
-    return []
-
-def save_synced(urls):
-    with open("synced.json", "w") as f:
-        json.dump(urls, f, indent=2)
+    print(f"📤 Provo ad aggiungere a Raindrop: {url}")
+    resp = requests.post(
+        "https://api.raindrop.io/rest/v1/raindrop",
+        headers={"Authorization": f"Bearer {RAINDROP_TOKEN}"},
+        json={"link": url, "title": title, "collection": {"$title": "RSS starred"}}
+    )
+    print(f"🔁 Status code: {resp.status_code}")
+    print(f"📬 Response body: {resp.text}")
+    if resp.status_code >= 300:
+        raise Exception(f"Errore da Raindrop: {resp.status_code} {resp.text}")
 
 def main():
-    headers = login_freshrss()
-    articles = get_starred_articles(headers)
-    synced = load_synced()
+    login_to_freshrss()
+    articles = get_starred_articles()
+    synced = []
+
+    if os.path.exists("synced.json"):
+        with open("synced.json", "r") as f:
+            synced = json.load(f)
 
     for article in articles:
-        # Forza il salvataggio per test
-        print(f"🔁 Forzo salvataggio: {article['url']}")
-        save_to_raindrop(article)
-        if article["url"] not in synced:
-            synced.append(article["url"])
+        print(f"📰 Articolo: {article['title']} - {article['url']}")
 
-    save_synced(synced)
+        if article["url"] in synced:
+            print("⏩ Già sincronizzato, salto.")
+            continue
+
+        try:
+            add_to_raindrop(article["url"], article["title"])
+            synced.append(article["url"])
+            print("✅ Aggiunto a Raindrop!")
+        except Exception as e:
+            print(f"❌ Errore durante sync: {e}")
+
+    with open("synced.json", "w") as f:
+        json.dump(synced, f, indent=2)
+
     print("✅ Fine main.py")
     print("Contenuto synced.json:")
     print(json.dumps(synced, indent=2))
