@@ -46,4 +46,4 @@ jobs:
         run: |
           git add synced.json
           git diff --cached --quiet || git commit -m "update synced.json"
-          git push --force origin main
+          git push origin main
