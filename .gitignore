@@ -1,0 +1,17 @@
+# Ignora file temporanei
+.ids.tmp
+
+# Ignora file Python compilati
+__pycache__/
+*.pyc
+
+# Ignora file di log
+*.log
+
+# Ignora ambiente virtuale
+.venv/
+env/
+
+# Ignora file sistema
+.DS_Store
+Thumbs.db
