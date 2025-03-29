@@ -47,19 +47,37 @@ def save_synced(urls):
         json.dump(sorted(list(urls)), f, indent=2)
 
 
-def save_to_raindrop(title, url):
+def save_to_raindrop(article):
+    url = article["url"]
+    title = article.get("title", url)
+
+    print(f"🔗 Provo a salvare su Raindrop: {title} - {url}")
+
     headers = {
-        "Authorization": f"Bearer {RAINDROP_TOKEN}",
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {os.environ['RAINDROP_TOKEN']}",
+        "Content-Type": "application/json",
     }
+
     data = {
         "link": url,
         "title": title,
-        "collection": {"$title": RAINDROP_COLLECTION}
+        "collection": {
+            "title": "RSS starred"
+        }
     }
-    print(f"🔗 Salvo su Raindrop: {title} ({url})")
-    r = requests.post("https://api.raindrop.io/rest/v1/raindrop", headers=headers, json=data)
-    r.raise_for_status()
+
+    response = requests.post("https://api.raindrop.io/rest/v1/raindrop", json=data, headers=headers)
+
+    print(f"📡 Status code: {response.status_code}")
+    try:
+        print(f"📬 Risposta: {response.json()}")
+    except Exception as e:
+        print(f"⚠️ Errore nella risposta JSON: {e}")
+
+    if response.status_code == 200:
+        print("✅ Salvato su Raindrop.")
+    else:
+        print("❌ Fallito il salvataggio su Raindrop.")
 
 
 def main():
