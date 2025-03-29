@@ -21,7 +21,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-      - name: Reset local repo to remote
+      - name: Sync with remote and reset
         run: |
           git fetch origin
           git reset --hard origin/main
